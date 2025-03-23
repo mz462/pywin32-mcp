@@ -1,195 +1,172 @@
-# Enhanced PowerPoint Model Context Protocol (MCP)
+# PowerPoint MCP Server
 
-This implementation provides an Enhanced Model Context Protocol (MCP) server and client for PowerPoint operations, following Anthropic's MCP standard. It enables AI systems to interact with PowerPoint presentations through a standardized interface with granular control over elements, shapes, charts, and templates.
+A Model Context Protocol (MCP) server for creating and manipulating PowerPoint presentations with AI assistance. This server provides a comprehensive API for AI models to interact with PowerPoint files, supporting advanced formatting, financial charts, and data integration.
 
 ## Features
 
-### Core Capabilities
-- **Modular Slide Editing**: Edit any element on a slide with precise control (text, position, color, size)
-- **Shape & Visual Element Support**: Create and modify PowerPoint shapes with custom formatting
-- **Chart & Graph Integration**: Create financial charts with Proff API data for Norwegian companies
-- **Content Templates**: Template support for common slide types and industry-specific templates
+### Presentation Management
+- Create and modify PowerPoint presentations
+- Add, delete, and modify slides
+- Save and load presentations from workspace
+- Template management system
 
-### Advanced Operations
-- Fine-grained element operations (find, edit, style, group)
-- Advanced shape handling and connectors
-- Financial data integration and visualization
-- Template system for creating and using slide templates
+### Element Operations
+- Fine-grained control over slide elements (text, shapes, images, charts)
+- Advanced shape creation and styling
+- Element positioning and grouping
+- Connector lines between shapes
+
+### Financial Integration
+- Create financial charts (line, bar, column, pie, waterfall, etc.)
+- Generate comparison tables
+- Support for various financial metrics:
+  - Revenue
+  - EBITDA
+  - Profit
+  - Assets
+  - Equity
+  - Growth rates
+  - Margins
+
+### Styling and Formatting
+- Rich text formatting
+- Shape styling (fills, gradients, outlines)
+- Chart customization
+- Background colors and effects
 
 ## Installation
 
-1. Install the required dependencies:
+1. Clone the repository:
+```bash
+git clone https://github.com/jenstangen1/pptx-mcp.git
+cd pptx-mcp
+```
+
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Create presentation workspace directory (optional, will be created automatically):
-```bash
-mkdir -p presentations/templates
-```
-
 ## Usage
 
-### Starting the MCP Server
+### Starting the Server
 
 Run the server:
 ```bash
 python mcp_powerpoint_server.py
 ```
 
-The server will start on `http://localhost:8000` by default.
-
-### Using the MCP Client
-
-```python
-from mcp_powerpoint_client import PowerPointMCPClient
-
-# Initialize the client
-client = PowerPointMCPClient()
-
-# Create a new presentation
-presentation_path = "example.pptx"
-
-# Add a slide
-client.add_slide(presentation_path)
-
-# Add text to the first slide
-client.add_text(presentation_path, 0, "Hello, World!", position=(1, 1), font_size=24)
-
-# Style the text element
-element_id = client.find_element(presentation_path, 0, "text", "Hello, World!")["data"]["elements"][0]["id"]
-client.style_element(presentation_path, 0, element_id, {
-    "font": {
-        "size": 32,
-        "bold": True,
-        "color": "#0000FF"
-    },
-    "fill": {
-        "type": "solid",
-        "color": "#FFFF00"
-    }
-})
-
-# Add a shape
-client.add_shape(presentation_path, 0, "rectangle", 
-                position={"x": 1, "y": 3}, 
-                size={"width": 3, "height": 2},
-                style_properties={
-                    "fill": {
-                        "type": "solid",
-                        "color": "#FF0000"
-                    }
-                })
-
-# Get financial data
-financials = client.get_company_financials(presentation_path, "Sample Company AS", 
-                                        metrics=["revenue", "ebitda", "profit"])
-
-# Create a financial chart
-client.create_financial_chart(
-    presentation_path, 0, "column",
-    data={
-        "categories": list(financials["data"]["financials"].keys()),
-        "series": [
-            {
-                "name": "Revenue",
-                "values": [financials["data"]["financials"][year]["revenue"] 
-                          for year in financials["data"]["financials"]]
-            }
-        ]
-    },
-    position={"x": 1, "y": 6},
-    size={"width": 6, "height": 4},
-    title="Revenue Over Time"
-)
-
-# Save the presentation
-client.save(presentation_path)
-```
-
-### Creating Company Overview Presentations
-
-The client includes a convenience method for creating complete company overview presentations:
-
-```python
-# Create a complete company overview presentation
-client.create_company_overview_presentation("Acme Inc")
-```
-
-## Available Operations
-
-### Element Operations
-- `find_element`: Find elements on a slide based on type, text, or position
-- `edit_element`: Edit properties of a specific element
-- `style_element`: Apply styling to a specific element
-- `group_elements`: Group multiple elements together
-
-### Shape Operations
-- `add_shape`: Add a new shape to a slide
-- `connect_shapes`: Create a connector between two shapes
-
-### Financial Data Operations
-- `get_company_financials`: Fetch financial data for a Norwegian company
-- `create_financial_chart`: Create a financial chart on a slide
-- `create_comparison_table`: Create a table comparing multiple companies
-
-### Template Operations
-- `apply_template`: Apply a template to a presentation
-- `create_slide_from_template`: Create a new slide based on a template
-- `save_as_template`: Save a slide as a template
+The server will create a workspace directory for presentations and templates if they don't exist.
 
 ### Basic Operations
-- `add_slide`: Add a new slide to the presentation
-- `add_text`: Add text to a specific slide
-- `add_image`: Add an image to a specific slide
-- `get_slide_count`: Get the total number of slides
-- `get_slide_text`: Get all text from a specific slide
-- `set_background_color`: Set the background color of a slide
-- `delete_slide`: Delete a specific slide
-- `save`: Save the presentation
 
-## API Documentation
+```python
+# List presentations
+presentations = mcp.list_presentations()
 
-The server provides automatic API documentation at:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+# Create a new slide
+slide_index = mcp.add_slide(presentation_path, layout_name="Title and Content")
 
-## Implementation Status
+# Add text to a slide
+element_id = mcp.add_text(
+    presentation_path=presentation_path,
+    slide_index=slide_index,
+    text="Hello World",
+    position=[1.0, 1.0],
+    font_size=24
+)
 
-### Completed
-- ✅ Extended PowerPoint object model with unique ID system for elements
-- ✅ Built comprehensive element finding, editing, and styling capabilities
-- ✅ Implemented advanced shape creation and connector functionality
-- ✅ Created financial data processing with simulated Proff API data
-- ✅ Built financial chart generation with various chart types
-- ✅ Implemented the template system with storage and management
-- ✅ Created robust error handling and validation
-- ✅ Built RESTful API server with standardized endpoints
-- ✅ Implemented client library for easy interaction
-
-### Future Work
-1. Create a comprehensive library of business templates
-2. Replace simulation with actual Proff API connection
-3. Extend python-pptx to better support element grouping
-4. Improve the slide preview rendering quality
-5. Optimize operations for faster execution
-6. Implement more sophisticated caching for API data
-7. Add version control for templates and presentations
-
-## Error Handling
-
-All operations return a response with the following structure:
-```json
-{
-    "success": true/false,
-    "data": {...} or null,
-    "error": "error message" or null
-}
+# Add a shape
+shape_id = mcp.add_shape(
+    presentation_path=presentation_path,
+    slide_index=slide_index,
+    shape_type="rectangle",
+    position={"x": 2.0, "y": 2.0},
+    size={"width": 2.0, "height": 1.0}
+)
 ```
 
-## Security Considerations
+### Financial Charts
 
-- The server currently allows CORS from all origins. In production, you should restrict this to specific origins.
-- File paths should be validated and sanitized in production.
-- Consider adding authentication and authorization mechanisms for production use.
-- API keys for external services should be stored securely using environment variables or a secrets manager.
+```python
+# Create a financial chart
+chart_id = mcp.create_financial_chart(
+    presentation_path=presentation_path,
+    slide_index=slide_index,
+    chart_type="column",
+    data={
+        "categories": ["2020", "2021", "2022"],
+        "series": [{
+            "name": "Revenue",
+            "values": [1000000, 1200000, 1500000]
+        }]
+    },
+    position={"x": 1.0, "y": 1.0},
+    size={"width": 6.0, "height": 4.0},
+    title="Revenue Growth"
+)
+
+# Create a comparison table
+table_id = mcp.create_comparison_table(
+    presentation_path=presentation_path,
+    slide_index=slide_index,
+    companies=["Company A", "Company B"],
+    metrics=["revenue", "ebitda", "margin"],
+    position={"x": 1.0, "y": 1.0},
+    title="Company Comparison"
+)
+```
+
+### Template Management
+
+```python
+# List available templates
+templates = mcp.list_templates()
+
+# Apply a template
+mcp.apply_template(
+    presentation_path=presentation_path,
+    template_name="financial_report",
+    options={
+        "apply_master": True,
+        "apply_theme": True,
+        "apply_layouts": True
+    }
+)
+
+# Create a slide from template
+mcp.create_slide_from_template(
+    presentation_path=presentation_path,
+    template_name="comparison_slide",
+    content={
+        "title": "Market Analysis",
+        "subtitle": "Q3 2023"
+    }
+)
+```
+
+## Directory Structure
+
+```
+pptx-mcp/
+├── mcp_powerpoint_server.py  # Main server implementation
+├── requirements.txt          # Python dependencies
+├── presentations/           # Workspace for presentations
+│   └── templates/          # Template storage
+└── README.md               # This file
+```
+
+## Dependencies
+
+- python-pptx: PowerPoint file manipulation
+- Pillow: Image processing
+- numpy: Numerical operations
+- MCP SDK: Model Context Protocol implementation
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
