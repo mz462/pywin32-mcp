@@ -27,6 +27,8 @@ A Model Context Protocol (MCP) server for creating and manipulating PowerPoint p
   - Equity
   - Growth rates
   - Margins
+- Currently uses dummy data, with plans to integrate Proff API for Norwegian company data
+- Adaptable to other financial data providers through API customization
 
 ### Styling and Formatting
 - Rich text formatting
@@ -46,6 +48,68 @@ cd pptx-mcp
 ```bash
 pip install -r requirements.txt
 ```
+
+## Setting up with Claude
+
+### Installing the MCP into Claude's Interface
+
+To integrate this PowerPoint MCP with Claude, add the following JSON configuration to your Claude MCP file:
+
+```json
+{
+    "mcpServers": {
+      "powerpoint_mcp": {
+        "command": "uv",
+        "args": [
+          "--directory",
+          "your directory here",
+          "run",
+          "mcp_powerpoint_server.py"
+        ]
+      }
+    }
+}
+```
+
+Note: You may need to modify the directory path to match your installation location.
+
+## Available MCP Tools
+
+### Presentation Management
+- `list_presentations`: List all PowerPoint files in the workspace
+- `upload_presentation`: Upload a new presentation to the workspace
+- `save_presentation`: Save the current presentation
+
+### Slide Operations
+- `add_slide`: Add a new slide to the presentation
+- `delete_slide`: Delete a slide from the presentation
+- `get_slide_count`: Get the total number of slides in the presentation
+- `analyze_slide`: Analyze the content of a slide
+- `set_background_color`: Set the background color of a slide
+
+### Element Operations
+- `add_text`: Add text to a slide
+- `add_shape`: Add a shape to a slide
+- `edit_element`: Edit an element's properties
+- `style_element`: Apply styling to an element
+- `connect_shapes`: Connect two shapes with a connector
+- `find_element`: Find elements on a slide based on criteria
+
+### Financial Tools
+- `get_company_financials`: Get financial data for a company (currently returns dummy data)
+- `create_financial_chart`: Create a financial chart on a slide
+- `create_comparison_table`: Create a comparison table for companies
+
+**Note:** The financial tools currently use dummy data. Future versions plan to integrate with the Proff API for automatic fetching of Norwegian company data. Users can modify the code to connect with local or preferred financial data providers.
+
+### Template Operations
+- `list_templates`: List all available templates
+- `apply_template`: Apply a template to a presentation
+- `create_slide_from_template`: Create a new slide from a template
+- `save_as_template`: Save a slide as a template
+
+### Debug Tools
+- `debug_element_mappings`: Debug tool to inspect element mappings for a slide
 
 ## Usage
 
