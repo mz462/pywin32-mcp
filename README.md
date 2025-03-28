@@ -98,41 +98,6 @@ The PowerPoint server provides a comprehensive API for AI models to interact wit
 - Chart customization
 - Background colors and effects
 
-## Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/jenstangen1/pptx-mcp.git
-cd pptx-mcp
-```
-
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-## Setting up with Claude
-
-### Installing the MCP into Claude's Interface
-
-To integrate this PowerPoint MCP with Claude, add the following JSON configuration to your Claude MCP file:
-
-```json
-{
-    "mcpServers": {
-      "powerpoint_mcp": {
-        "command": "uv",
-        "args": [
-          "--directory",
-          "your directory here",
-          "run",
-          "mcp_powerpoint_server.py"
-        ]
-      }
-    }
-}
-```
-
 Note: You may need to modify the directory path to match your installation location.
 
 ## Available MCP Tools
@@ -175,100 +140,134 @@ Note: You may need to modify the directory path to match your installation locat
 
 ## Usage
 
-### Starting the Server
+### Interacting with Claude
 
-Run the server:
-```bash
-python mcp_powerpoint_server.py
+Once you've configured the MCP servers in your Claude Desktop app, you can interact with PowerPoint and Excel through natural language commands. Here are some examples:
+
+#### PowerPoint Examples
+
+```
+You: Create a new slide with a title "Market Analysis" and add a bar chart showing revenue growth.
+
+Claude: I'll help you create that slide with the title and chart. I'll:
+1. Add a new slide
+2. Add the title text
+3. Create a revenue chart
+
+[Claude will then use the MCP tools in sequence:
+- add_slide
+- add_text
+- create_financial_chart]
+
+You: Make the title bigger and change its color to blue.
+
+Claude: I'll modify the title's formatting.
+[Claude will use:
+- find_element (to locate the title)
+- edit_element (to update the formatting)]
+
+You: Add a comparison table below the chart comparing three companies.
+
+Claude: I'll add a comparison table below the existing chart.
+[Claude will use:
+- create_comparison_table]
 ```
 
-The server will create a workspace directory for presentations and templates if they don't exist.
+#### Excel Examples
 
-### Basic Operations
+```
+You: Open the Q4 report and show me the revenue numbers from cells B2 to B5.
 
-```python
-# List presentations
-presentations = mcp.list_presentations()
+Claude: I'll help you retrieve those revenue figures.
+[Claude will use:
+- list_open_workbooks (to find the workbook)
+- get_range_values (to read the specified cells)]
 
-# Create a new slide
-slide_index = mcp.add_slide(presentation_path, layout_name="Title and Content")
+You: Calculate the sum of these numbers and put it in cell B6.
 
-# Add text to a slide
-element_id = mcp.add_text(
-    presentation_path=presentation_path,
-    slide_index=slide_index,
-    text="Hello World",
-    position=[1.0, 1.0],
-    font_size=24
-)
+Claude: I'll calculate the sum and write it to B6.
+[Claude will use:
+- get_range_values (to get the numbers)
+- set_cell_value (to write the sum)]
 
-# Add a shape
-shape_id = mcp.add_shape(
-    presentation_path=presentation_path,
-    slide_index=slide_index,
-    shape_type="rectangle",
-    position={"x": 2.0, "y": 2.0},
-    size={"width": 2.0, "height": 1.0}
-)
+You: Create a new sheet called "Summary" and copy these values there.
+
+Claude: I'll create a new sheet and copy the data.
+[Claude will use:
+- add_worksheet
+- get_range_values (from source)
+- set_range_values (to destination)]
 ```
 
-### Financial Charts
+### How It Works
 
-```python
-# Create a financial chart
-chart_id = mcp.create_financial_chart(
-    presentation_path=presentation_path,
-    slide_index=slide_index,
-    chart_type="column",
-    data={
-        "categories": ["2020", "2021", "2022"],
-        "series": [{
-            "name": "Revenue",
-            "values": [1000000, 1200000, 1500000]
-        }]
-    },
-    position={"x": 1.0, "y": 1.0},
-    size={"width": 6.0, "height": 4.0},
-    title="Revenue Growth"
-)
+1. **Natural Language Understanding**
+   - Claude interprets your requests and breaks them down into specific actions
+   - It understands context from previous interactions
+   - It can handle complex, multi-step operations
 
-# Create a comparison table
-table_id = mcp.create_comparison_table(
-    presentation_path=presentation_path,
-    slide_index=slide_index,
-    companies=["Company A", "Company B"],
-    metrics=["revenue", "ebitda", "margin"],
-    position={"x": 1.0, "y": 1.0},
-    title="Company Comparison"
-)
+2. **Tool Selection**
+   - Claude automatically selects the appropriate MCP tools for each task
+   - It can chain multiple tools together for complex operations
+   - It handles error cases and provides feedback
+
+3. **Context Management**
+   - Claude maintains context about:
+     - Currently open files
+     - Recent operations
+     - Selected elements
+     - User preferences
+
+4. **Error Handling**
+   - If an operation fails, Claude will:
+     - Explain what went wrong
+     - Suggest alternatives
+     - Help troubleshoot common issues
+
+### Best Practices
+
+1. **Be Specific**
+   - Mention slide numbers when relevant
+   - Specify exact cell ranges in Excel
+   - Describe desired formatting clearly
+
+2. **Complex Operations**
+   - Break down complex requests into steps
+   - Confirm intermediate results
+   - Ask for adjustments as needed
+
+3. **Troubleshooting**
+   - Ensure PowerPoint/Excel is running
+   - Check file permissions
+   - Verify COM automation is working
+   - Run pywin32_postinstall.py if needed
+
+### Example Workflows
+
+#### Creating a Financial Presentation
+
+```
+You: Create a new presentation about Q4 financial results.
+Claude: I'll create a new presentation with a title slide.
+
+You: Add revenue charts for the last 4 quarters.
+Claude: I'll create a new slide with a chart showing quarterly revenue.
+
+You: Now add a comparison with our competitors.
+Claude: I'll add a comparison table with key metrics for you and competitors.
 ```
 
-### Template Management
+#### Analyzing Excel Data
 
-```python
-# List available templates
-templates = mcp.list_templates()
+```
+You: Show me all sheets in the Q4 analysis workbook.
+Claude: I'll list all worksheets in that workbook.
 
-# Apply a template
-mcp.apply_template(
-    presentation_path=presentation_path,
-    template_name="financial_report",
-    options={
-        "apply_master": True,
-        "apply_theme": True,
-        "apply_layouts": True
-    }
-)
+You: Find the highest revenue value in column B.
+Claude: I'll scan column B and find the maximum value.
 
-# Create a slide from template
-mcp.create_slide_from_template(
-    presentation_path=presentation_path,
-    template_name="comparison_slide",
-    content={
-        "title": "Market Analysis",
-        "subtitle": "Q3 2023"
-    }
-)
+You: Create a summary of the top 5 values.
+Claude: I'll create a new sheet with the top 5 revenue figures.
 ```
 
 ## Directory Structure
@@ -336,69 +335,6 @@ The Excel server provides tools for interacting with Excel workbooks, worksheets
 - `get_range_values`: Read values from a range of cells
 - `set_range_values`: Set values for a range of cells
 
-## Usage Examples
-
-### Basic Operations
-
-```python
-# List open workbooks
-workbooks = mcp.list_open_workbooks()
-
-# List worksheets in a workbook
-sheets = mcp.list_worksheets(workbook_identifier="Book1.xlsx")
-
-# Read a cell value
-value = mcp.get_cell_value(
-    identifier="Book1.xlsx",
-    sheet_identifier="Sheet1",
-    cell_address="A1"
-)
-
-# Write to a cell
-mcp.set_cell_value(
-    identifier="Book1.xlsx",
-    sheet_identifier="Sheet1",
-    cell_address="B1",
-    value="Hello World"
-)
-```
-
-### Working with Ranges
-
-```python
-# Read a range of cells
-values = mcp.get_range_values(
-    identifier="Book1.xlsx",
-    sheet_identifier="Sheet1",
-    range_address="A1:C5"
-)
-
-# Write to a range of cells
-data = [
-    ["Name", "Age", "City"],
-    ["John", 30, "New York"],
-    ["Jane", 25, "London"]
-]
-mcp.set_range_values(
-    identifier="Book1.xlsx",
-    sheet_identifier="Sheet1",
-    start_cell="A1",
-    values=data
-)
-```
-
-### Saving Workbooks
-
-```python
-# Save with current name
-mcp.save_workbook(identifier="Book1.xlsx")
-
-# Save with a new name/location
-mcp.save_workbook(
-    identifier="Book1.xlsx",
-    save_path="C:\\Documents\\NewBook.xlsx"
-)
-```
 
 ## Notes
 
