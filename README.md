@@ -1,6 +1,68 @@
+# Microsoft Office MCP Servers
+
+This repository contains Model Context Protocol (MCP) servers for interacting with Microsoft Office applications through AI assistance. Currently supported applications:
+- PowerPoint: Create and manipulate presentations
+- Excel: Interact with workbooks and spreadsheets
+
+Both servers use `pywin32` for COM automation, allowing direct interaction with running Office applications.
+
+## Prerequisites
+
+- Windows operating system
+- Microsoft Office installed (PowerPoint and/or Excel)
+- Python 3.7+
+- `pywin32` package
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/jenstangen1/mcp-pptx.git
+cd mcp-pptx
+```
+
+2. Install dependencies using `uv`:
+```bash
+uv pip install pywin32
+```
+
+3. Run the `pywin32` post-install script with administrator privileges:
+```bash
+python C:\path\to\your\env\Scripts\pywin32_postinstall.py -install
+```
+
+## Setting up with Claude
+
+To integrate these MCP servers with Claude, add the following configuration to your Claude Desktop app settings:
+
+```json
+{
+    "mcpServers": {
+        "powerpoint_mcp_win32": {
+            "command": "uv",
+            "args": [
+                "run",
+                "mcp_powerpoint_server_win32.py"
+            ],
+            "cwd": "C:\\path\\to\\your\\workspace"
+        },
+        "excel_mcp_win32": {
+            "command": "uv",
+            "args": [
+                "run",
+                "mcp_excel_server_win32.py"
+            ],
+            "cwd": "C:\\path\\to\\your\\workspace"
+        }
+    }
+}
+```
+
+Note: Replace `C:\\path\\to\\your\\workspace` with your actual workspace path.
+
 # PowerPoint MCP Server
 
-A Model Context Protocol (MCP) server for creating and manipulating PowerPoint presentations with AI assistance. This server provides a comprehensive API for AI models to interact with PowerPoint files, supporting advanced formatting, financial charts, and data integration.
+The PowerPoint server provides a comprehensive API for AI models to interact with PowerPoint presentations, supporting advanced formatting, financial charts, and data integration.
 
 ## Features
 
@@ -234,3 +296,113 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+# Excel MCP Server
+
+The Excel server provides tools for interacting with Excel workbooks, worksheets, and cell data through AI assistance.
+
+## Features
+
+### Workbook Management
+- Connect to running Excel instances
+- List open workbooks
+- Save workbooks with various formats (.xlsx, .xlsm, .xlsb, .xls)
+
+### Worksheet Operations
+- List worksheets in a workbook
+- Add new worksheets
+- Access worksheets by name or index
+
+### Cell and Range Operations
+- Read and write individual cell values
+- Get and set values for cell ranges
+- Handle various data types (text, numbers, dates, currency)
+- Automatic type conversion for dates and currency values
+
+## Available MCP Tools
+
+### Workbook Management
+- `list_open_workbooks`: List all currently open Excel workbooks
+- `save_workbook`: Save a workbook to disk with optional format selection
+
+### Worksheet Operations
+- `list_worksheets`: List all worksheets in a workbook
+- `add_worksheet`: Add a new worksheet to a workbook
+- `get_worksheet`: Get a worksheet by name or index
+
+### Cell and Range Operations
+- `get_cell_value`: Read a single cell's value
+- `set_cell_value`: Set a single cell's value
+- `get_range_values`: Read values from a range of cells
+- `set_range_values`: Set values for a range of cells
+
+## Usage Examples
+
+### Basic Operations
+
+```python
+# List open workbooks
+workbooks = mcp.list_open_workbooks()
+
+# List worksheets in a workbook
+sheets = mcp.list_worksheets(workbook_identifier="Book1.xlsx")
+
+# Read a cell value
+value = mcp.get_cell_value(
+    identifier="Book1.xlsx",
+    sheet_identifier="Sheet1",
+    cell_address="A1"
+)
+
+# Write to a cell
+mcp.set_cell_value(
+    identifier="Book1.xlsx",
+    sheet_identifier="Sheet1",
+    cell_address="B1",
+    value="Hello World"
+)
+```
+
+### Working with Ranges
+
+```python
+# Read a range of cells
+values = mcp.get_range_values(
+    identifier="Book1.xlsx",
+    sheet_identifier="Sheet1",
+    range_address="A1:C5"
+)
+
+# Write to a range of cells
+data = [
+    ["Name", "Age", "City"],
+    ["John", 30, "New York"],
+    ["Jane", 25, "London"]
+]
+mcp.set_range_values(
+    identifier="Book1.xlsx",
+    sheet_identifier="Sheet1",
+    start_cell="A1",
+    values=data
+)
+```
+
+### Saving Workbooks
+
+```python
+# Save with current name
+mcp.save_workbook(identifier="Book1.xlsx")
+
+# Save with a new name/location
+mcp.save_workbook(
+    identifier="Book1.xlsx",
+    save_path="C:\\Documents\\NewBook.xlsx"
+)
+```
+
+## Notes
+
+- Both servers require Windows and their respective Microsoft Office applications installed
+- The servers interact with *running* instances of the applications
+- COM automation requires proper initialization; run the post-install script if you encounter COM-related errors
+- For better constant handling, consider using `makepy` to generate Office constants
