@@ -6,4 +6,4 @@ requests==2.31.0
 #Pillow==10.2.0
 opencv-python==4.9.0.80
 numpy==1.26.4
-mcp==0.0.7
+mcp==1.9.4
