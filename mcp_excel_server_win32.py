@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any, Union, Tuple
 from mcp.server.fastmcp import FastMCP
 import os
 from win32com.client import constants
+from contextlib import contextmanager
 
 # Constants from Excel VBA Object Library (obtained via makepy or documentation)
 # Using magic numbers for simplicity here, but using makepy is recommended
@@ -40,6 +41,27 @@ class ExcelEditorWin32:
         # Make sure interaction errors are visible to the user
         if self.app:
              self.app.DisplayAlerts = True # Show Excel's own alerts
+
+    @contextmanager
+    def _performance_mode(self):
+        """Context manager to optimize Excel performance during batch operations."""
+        if not self.app:
+            yield
+            return
+        
+        # Store original settings
+        original_screen_updating = self.app.ScreenUpdating
+        original_display_alerts = self.app.DisplayAlerts
+        
+        try:
+            # Disable UI updates for performance
+            self.app.ScreenUpdating = False
+            self.app.DisplayAlerts = False
+            yield
+        finally:
+            # Always restore original settings
+            self.app.ScreenUpdating = original_screen_updating
+            self.app.DisplayAlerts = original_display_alerts
 
     def _ensure_connection(self):
         """Ensures the Excel application object is valid."""
@@ -123,7 +145,7 @@ class ExcelEditorWin32:
 
         Args:
             identifier (Union[str, int]): Name, path, or index of the workbook.
-            save_path (Optional[str]): Path to save to (e.g., 'C:\MyFolder\NewName.xlsx').
+            save_path (Optional[str]): Path to save to (e.g., 'C:\\MyFolder\\NewName.xlsx').
                                       If None, saves to its current path.
                                       If the workbook is new, save_path is required.
         """
@@ -133,29 +155,30 @@ class ExcelEditorWin32:
             raise ValueError(f"Workbook '{identifier}' not found.")
 
         try:
-            if save_path:
-                abs_path = os.path.abspath(save_path)
-                os.makedirs(os.path.dirname(abs_path), exist_ok=True)
-                # Determine file format based on extension, default to xlsx
-                file_format = None
-                if abs_path.lower().endswith(".xlsx"):
-                    file_format = xlOpenXMLWorkbook # 51
-                elif abs_path.lower().endswith(".xlsm"):
-                    file_format = 52 # xlOpenXMLWorkbookMacroEnabled
-                elif abs_path.lower().endswith(".xlsb"):
-                    file_format = 50 # xlExcel12 (Binary)
-                elif abs_path.lower().endswith(".xls"):
-                    file_format = 56 # xlExcel8
-                # Add other formats if needed (e.g., CSV = 6)
+            with self._performance_mode():
+                if save_path:
+                    abs_path = os.path.abspath(save_path)
+                    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+                    # Determine file format based on extension, default to xlsx
+                    file_format = None
+                    if abs_path.lower().endswith(".xlsx"):
+                        file_format = xlOpenXMLWorkbook # 51
+                    elif abs_path.lower().endswith(".xlsm"):
+                        file_format = 52 # xlOpenXMLWorkbookMacroEnabled
+                    elif abs_path.lower().endswith(".xlsb"):
+                        file_format = 50 # xlExcel12 (Binary)
+                    elif abs_path.lower().endswith(".xls"):
+                        file_format = 56 # xlExcel8
+                    # Add other formats if needed (e.g., CSV = 6)
 
-                print(f"Attempting to save as '{abs_path}' with format {file_format}")
-                wb.SaveAs(abs_path, FileFormat=file_format)
-                print(f"Workbook saved as '{abs_path}'.")
-            elif wb.Path: # Can only save if it has a path already
-                wb.Save()
-                print(f"Workbook '{wb.Name}' saved.")
-            else:
-                raise ValueError("save_path is required for a new workbook that hasn't been saved before.")
+                    print(f"Attempting to save as '{abs_path}' with format {file_format}")
+                    wb.SaveAs(abs_path, FileFormat=file_format)
+                    print(f"Workbook saved as '{abs_path}'.")
+                elif wb.Path: # Can only save if it has a path already
+                    wb.Save()
+                    print(f"Workbook '{wb.Name}' saved.")
+                else:
+                    raise ValueError("save_path is required for a new workbook that hasn't been saved before.")
         except Exception as e:
             print(f"Error saving workbook '{identifier}': {e}")
             # Provide more COM error details if possible
@@ -244,16 +267,17 @@ class ExcelEditorWin32:
             raise ValueError(f"Workbook '{identifier}' not found.")
 
         try:
-            # Add sheet at the end
-            new_sheet = wb.Worksheets.Add(After=wb.Worksheets(wb.Worksheets.Count))
-            if sheet_name:
-                 try:
-                      new_sheet.Name = sheet_name
-                 except Exception as name_e:
-                      print(f"Warning: Could not set sheet name to '{sheet_name}'. Using default '{new_sheet.Name}'. Error: {name_e}")
+            with self._performance_mode():
+                # Add sheet at the end
+                new_sheet = wb.Worksheets.Add(After=wb.Worksheets(wb.Worksheets.Count))
+                if sheet_name:
+                     try:
+                          new_sheet.Name = sheet_name
+                     except Exception as name_e:
+                          print(f"Warning: Could not set sheet name to '{sheet_name}'. Using default '{new_sheet.Name}'. Error: {name_e}")
 
-            print(f"Added worksheet '{new_sheet.Name}' (Index: {new_sheet.Index}) to workbook '{wb.Name}'.")
-            return {"name": new_sheet.Name, "index": new_sheet.Index}
+                print(f"Added worksheet '{new_sheet.Name}' (Index: {new_sheet.Index}) to workbook '{wb.Name}'.")
+                return {"name": new_sheet.Name, "index": new_sheet.Index}
         except Exception as e:
             print(f"Error adding worksheet to workbook '{identifier}': {e}")
             raise
@@ -382,19 +406,247 @@ class ExcelEditorWin32:
             raise ValueError("Input 'values' must be a non-empty list of lists.")
 
         try:
-            num_rows = len(values)
-            num_cols = len(values[0])
+            with self._performance_mode():
+                num_rows = len(values)
+                num_cols = len(values[0])
 
-            # Determine the target range based on start_cell and dimensions
-            start_range = ws.Range(start_cell)
-            # Use Resize property to define the target range
-            target_range = start_range.Resize(num_rows, num_cols)
+                # Determine the target range based on start_cell and dimensions
+                start_range = ws.Range(start_cell)
+                # Use Resize property to define the target range
+                target_range = start_range.Resize(num_rows, num_cols)
 
-            # Set the values
-            target_range.Value = values
-            print(f"Set values in range {target_range.Address} on sheet '{ws.Name}'.")
+                # Set the values
+                target_range.Value = values
+                print(f"Set values in range {target_range.Address} on sheet '{ws.Name}'.")
         except Exception as e:
             print(f"Error setting values starting at cell '{start_cell}' on sheet '{sheet_identifier}': {e}")
+            raise
+
+    def find_used_ranges(self, identifier: Union[str, int], sheet_identifier: Union[str, int]) -> List[Dict[str, Any]]:
+        """
+        Find all contiguous data blocks in a worksheet.
+        
+        Returns:
+            List[Dict]: List of used ranges with metadata
+        """
+        self._ensure_connection()
+        ws = self.get_worksheet(identifier, sheet_identifier)
+        if not ws:
+            raise ValueError(f"Worksheet '{sheet_identifier}' not found.")
+
+        try:
+            used_range = ws.UsedRange
+            if not used_range:
+                return []
+            
+            # Get the overall used range
+            main_range = {
+                "range": used_range.Address,
+                "rows": used_range.Rows.Count,
+                "cols": used_range.Columns.Count,
+                "first_row": used_range.Row,
+                "last_row": used_range.Row + used_range.Rows.Count - 1,
+                "first_col": used_range.Column,
+                "last_col": used_range.Column + used_range.Columns.Count - 1
+            }
+            
+            # TODO: Add logic to detect separate contiguous blocks within used range
+            return [main_range]
+        except Exception as e:
+            print(f"Error finding used ranges on sheet '{sheet_identifier}': {e}")
+            raise
+
+    def extract_string_cells(self, identifier: Union[str, int], sheet_identifier: Union[str, int]) -> List[Dict[str, Any]]:
+        """
+        Extract all text cells with their metadata.
+        
+        Returns:
+            List[Dict]: List of string cells with location info
+        """
+        self._ensure_connection()
+        ws = self.get_worksheet(identifier, sheet_identifier)
+        if not ws:
+            raise ValueError(f"Worksheet '{sheet_identifier}' not found.")
+
+        try:
+            used_range = ws.UsedRange
+            if not used_range:
+                return []
+            
+            string_cells = []
+            values = used_range.Value
+            
+            # Handle single cell case
+            if not isinstance(values, tuple):
+                if isinstance(values, str):
+                    string_cells.append({
+                        "value": values,
+                        "address": used_range.Address,
+                        "sheet": ws.Name,
+                        "row": used_range.Row,
+                        "col": used_range.Column
+                    })
+                return string_cells
+            
+            # Handle multiple cells
+            for row_idx, row in enumerate(values):
+                if isinstance(row, tuple):
+                    for col_idx, cell_value in enumerate(row):
+                        if isinstance(cell_value, str) and cell_value.strip():
+                            actual_row = used_range.Row + row_idx
+                            actual_col = used_range.Column + col_idx
+                            cell_address = ws.Cells(actual_row, actual_col).Address
+                            string_cells.append({
+                                "value": cell_value.strip(),
+                                "address": cell_address,
+                                "sheet": ws.Name,
+                                "row": actual_row,
+                                "col": actual_col
+                            })
+                elif isinstance(row, str) and row.strip():
+                    actual_row = used_range.Row + row_idx
+                    actual_col = used_range.Column
+                    cell_address = ws.Cells(actual_row, actual_col).Address
+                    string_cells.append({
+                        "value": row.strip(),
+                        "address": cell_address,
+                        "sheet": ws.Name,
+                        "row": actual_row,
+                        "col": actual_col
+                    })
+            
+            return string_cells
+        except Exception as e:
+            print(f"Error extracting string cells from sheet '{sheet_identifier}': {e}")
+            raise
+
+    def get_cell_types_in_range(self, identifier: Union[str, int], sheet_identifier: Union[str, int], range_address: str) -> List[List[str]]:
+        """
+        Get the type of each cell in a range.
+        
+        Returns:
+            List[List[str]]: Grid of cell types ('text', 'number', 'formula', 'empty')
+        """
+        self._ensure_connection()
+        ws = self.get_worksheet(identifier, sheet_identifier)
+        if not ws:
+            raise ValueError(f"Worksheet '{sheet_identifier}' not found.")
+
+        try:
+            data_range = ws.Range(range_address)
+            values = data_range.Value
+            formulas = data_range.Formula
+            
+            # Handle single cell case
+            if not isinstance(values, tuple):
+                cell_type = self._determine_cell_type(values, formulas)
+                return [[cell_type]]
+            
+            # Handle multiple cells
+            cell_types = []
+            for row_idx, row in enumerate(values):
+                row_types = []
+                if isinstance(row, tuple):
+                    for col_idx, cell_value in enumerate(row):
+                        formula_value = formulas[row_idx][col_idx] if isinstance(formulas[0], tuple) else formulas
+                        cell_type = self._determine_cell_type(cell_value, formula_value)
+                        row_types.append(cell_type)
+                else:
+                    formula_value = formulas[row_idx] if isinstance(formulas, tuple) else formulas
+                    cell_type = self._determine_cell_type(row, formula_value)
+                    row_types.append(cell_type)
+                cell_types.append(row_types)
+            
+            return cell_types
+        except Exception as e:
+            print(f"Error getting cell types in range '{range_address}' on sheet '{sheet_identifier}': {e}")
+            raise
+
+    def _determine_cell_type(self, value: Any, formula: Any) -> str:
+        """Determine the type of a cell based on its value and formula."""
+        if formula and isinstance(formula, str) and formula.startswith('='):
+            return 'formula'
+        elif value is None or value == '':
+            return 'empty'
+        elif isinstance(value, str):
+            return 'text'
+        elif isinstance(value, (int, float)):
+            return 'number'
+        else:
+            return 'other'
+
+    def analyze_label_value_patterns(self, identifier: Union[str, int], sheet_identifier: Union[str, int]) -> Dict[str, Any]:
+        """
+        Analyze common DCF patterns: labels with adjacent values.
+        
+        Returns:
+            Dict: Analysis of label-value relationships
+        """
+        self._ensure_connection()
+        ws = self.get_worksheet(identifier, sheet_identifier)
+        if not ws:
+            raise ValueError(f"Worksheet '{sheet_identifier}' not found.")
+
+        try:
+            with self._performance_mode():
+                string_cells = self.extract_string_cells(identifier, sheet_identifier)
+                used_ranges = self.find_used_ranges(identifier, sheet_identifier)
+            
+            patterns = {
+                "horizontal_pairs": [],  # Text in col A, numbers in col B
+                "vertical_lists": [],    # Text labels with values below
+                "table_headers": [],     # Horizontal headers with data below
+                "summary": {
+                    "total_string_cells": len(string_cells),
+                    "used_ranges": len(used_ranges)
+                }
+            }
+            
+            # Analyze horizontal pairs (label-value pairs side by side)
+            for string_cell in string_cells:
+                adjacent_col = string_cell["col"] + 1
+                try:
+                    adjacent_cell = ws.Cells(string_cell["row"], adjacent_col)
+                    adjacent_value = adjacent_cell.Value
+                    if isinstance(adjacent_value, (int, float)) and adjacent_value != 0:
+                        patterns["horizontal_pairs"].append({
+                            "label": string_cell["value"],
+                            "label_address": string_cell["address"],
+                            "value": adjacent_value,
+                            "value_address": adjacent_cell.Address,
+                            "row": string_cell["row"]
+                        })
+                except:
+                    continue
+            
+            # Analyze potential table headers
+            for string_cell in string_cells:
+                # Check if there are numbers in the same column below this text
+                numbers_below = []
+                for check_row in range(string_cell["row"] + 1, min(string_cell["row"] + 20, ws.UsedRange.Rows.Count + ws.UsedRange.Row)):
+                    try:
+                        check_cell = ws.Cells(check_row, string_cell["col"])
+                        check_value = check_cell.Value
+                        if isinstance(check_value, (int, float)) and check_value != 0:
+                            numbers_below.append({
+                                "value": check_value,
+                                "address": check_cell.Address,
+                                "row": check_row
+                            })
+                    except:
+                        break
+                
+                if len(numbers_below) >= 2:  # At least 2 numbers below = likely a column header
+                    patterns["table_headers"].append({
+                        "header": string_cell["value"],
+                        "header_address": string_cell["address"],
+                        "data_count": len(numbers_below),
+                        "data_range": f"{string_cell['address']}:{ws.Cells(numbers_below[-1]['row'], string_cell['col']).Address}"
+                    })
+            
+            return patterns
+        except Exception as e:
+            print(f"Error analyzing label-value patterns on sheet '{sheet_identifier}': {e}")
             raise
 
 # --- MCP Server Setup --- #
@@ -508,6 +760,46 @@ def set_range_values(identifier: Union[str, int], sheet_identifier: Union[str, i
         return {"message": f"Successfully set {num_rows}x{num_cols} range starting at '{start_cell}'."}
     except Exception as e:
         return _handle_excel_tool_error("set_range_values", e)
+
+@mcp.tool()  
+def find_used_ranges(identifier: Union[str, int], sheet_identifier: Union[str, int]):
+    """Find all contiguous data blocks in a worksheet. Returns range metadata for DCF analysis."""
+    if not editor: return {"error": "Excel editor not initialized."}
+    try:
+        ranges = editor.find_used_ranges(identifier, sheet_identifier)
+        return {"used_ranges": ranges}
+    except Exception as e:
+        return _handle_excel_tool_error("find_used_ranges", e)
+
+@mcp.tool()
+def extract_string_cells(identifier: Union[str, int], sheet_identifier: Union[str, int]):
+    """Extract all text cells with their metadata (address, sheet, row, col). Essential for DCF label detection."""
+    if not editor: return {"error": "Excel editor not initialized."}
+    try:
+        string_cells = editor.extract_string_cells(identifier, sheet_identifier)
+        return {"string_cells": string_cells}
+    except Exception as e:
+        return _handle_excel_tool_error("extract_string_cells", e)
+
+@mcp.tool()
+def get_cell_types_in_range(identifier: Union[str, int], sheet_identifier: Union[str, int], range_address: str):
+    """Get cell types in a range ('text', 'number', 'formula', 'empty'). Useful for understanding data structure."""
+    if not editor: return {"error": "Excel editor not initialized."}
+    try:
+        cell_types = editor.get_cell_types_in_range(identifier, sheet_identifier, range_address)
+        return {"cell_types": cell_types}
+    except Exception as e:
+        return _handle_excel_tool_error("get_cell_types_in_range", e)
+
+@mcp.tool()
+def analyze_label_value_patterns(identifier: Union[str, int], sheet_identifier: Union[str, int]):
+    """Analyze DCF patterns: horizontal pairs, table headers, vertical lists. Key for understanding DCF structure."""
+    if not editor: return {"error": "Excel editor not initialized."}
+    try:
+        patterns = editor.analyze_label_value_patterns(identifier, sheet_identifier)
+        return {"patterns": patterns}
+    except Exception as e:
+        return _handle_excel_tool_error("analyze_label_value_patterns", e)
 
 # --- Server Execution --- #
 
